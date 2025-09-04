@@ -17,23 +17,31 @@ jobs:
       - name: Instalar dependências do sistema
         run: |
           sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk python3 python3-pip python3-setuptools python3-wheel libffi-dev libssl-dev libsqlite3-dev
+          sudo apt install -y git zip unzip openjdk-17-jdk python3 python3-pip python3-setuptools python3-wheel libffi-dev libssl-dev libsqlite3-dev wget
 
-      - name: Instalar Buildozer e SDK
+      - name: Instalar Buildozer e Android SDK
         run: |
           pip install --upgrade pip
           pip install buildozer cython virtualenv
-          # Instala Android SDK e ferramentas necessárias
-          sudo apt install -y android-sdk adb
-          export ANDROIDSDK=/usr/lib/android-sdk
-          export PATH=$ANDROIDSDK/platform-tools:$ANDROIDSDK/cmdline-tools/latest/bin:$PATH
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-31" "build-tools;31.0.0"
+
+          # Baixar command line tools mais recente
+          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          unzip cmdline-tools.zip -d $HOME/android-sdk/cmdline-tools
+          mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
+
+          # Configurar variáveis de ambiente
+          echo "export ANDROIDSDK=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "export ANDROIDNDK=$HOME/.buildozer/android/platform/android-ndk-r25b" >> $GITHUB_ENV
+          echo "export PATH=$HOME/android-sdk/cmdline-tools/latest/bin:$HOME/android-sdk/platform-tools:$PATH" >> $GITHUB_ENV
+
+          # Aceitar licenças e instalar pacotes
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-31" "build-tools;31.0.0"
 
       - name: Compilar APK
         run: |
-          export ANDROIDSDK=/usr/lib/android-sdk
-          export PATH=$ANDROIDSDK/platform-tools:$ANDROIDSDK/cmdline-tools/latest/bin:$PATH
+          source $GITHUB_ENV
           buildozer -v android debug
 
       - name: Upload APK
